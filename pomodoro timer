@@ -86,18 +86,28 @@ class PomodoroApp(tk.Tk):
             try:
                 focus_time = int(self.long_break_entry.get())
                 break_time = int(self.short_break_entry.get())
-                if focus_time > 0 and break_time > 0:
+
+                # Allow 0 for either focus_time or break_time, but not both.
+                if focus_time == 0 and break_time == 0:
+                    messagebox.showwarning("Invalid Input", "Either Focus Time or Break Time must be greater than 0.")
+                    return
+
+                if focus_time >= 0 and break_time >= 0:
                     self.focus_time = focus_time
                     self.break_time = break_time
                     self.reset_timer()
                 else:
-                    messagebox.showwarning("Invalid Input", "Please enter positive integer values for the times.")
+                    messagebox.showwarning("Invalid Input", "Please enter non-negative integer values for the times.")
             except ValueError:
                 messagebox.showwarning("Invalid Input", "Please enter valid integer values for the times.")
         else:
             self.focus_time = self.default_focus_time
             self.break_time = self.default_break_time
             self.reset_timer()
+
+            #Switch to the Pomodoro tab
+
+            self.tab.control.select(self.pomodoro_tab)
 
     def reset_timer(self):
         self.timer_label.config(text=f"{self.focus_time:02}:00.00")
@@ -117,12 +127,19 @@ class PomodoroApp(tk.Tk):
 
     def run_timer(self, countdown_time):
         if self.timer_running:
+            if countdown_time <= 0:
+                # Skip to the next phase if the countdown time is 0
+                self.is_break = not self.is_break
+                self.quote_label.config(text="Time to rest" if self.is_break else "Time to focus")
+                self.run_timer(self.break_time * 60 if self.is_break else self.focus_time * 60)
+                return
+            
+            #Only show minutes and seconds
             minutes, seconds = divmod(int(countdown_time), 60)
-            milliseconds = int((countdown_time * 100) % 100)
-            # Ensure the display is always in MM:SS.mm format
-            self.timer_label.config(text=f"{minutes:02}:{seconds:02}.{milliseconds:02}")
+        
+            self.timer_label.config(text=f"{minutes:02}:{seconds:02}") # No miliseconds
             if countdown_time > 0:
-                self.after(10, self.run_timer, countdown_time - 0.01)
+                self.after(1000, self.run_timer, countdown_time - 1)
             else:
                 self.is_break = not self.is_break
                 self.quote_label.config(text="Time to rest" if self.is_break else "Time to focus")
@@ -131,3 +148,138 @@ class PomodoroApp(tk.Tk):
 if __name__ == "__main__":
     app = PomodoroApp()
     app.mainloop()
+
+
+# import tkinter as tk
+# from tkinter import ttk
+# from tkinter import messagebox
+#
+# class PomodoroApp(tk.Tk):
+#     def __init__(self):
+#         super().__init__()
+#         self.title("Pomodoro Timer")
+#         self.geometry("400x300")
+#         self.configure(bg="#fff5f5")
+#
+#         self.default_focus_time = 25  # in minutes
+#         self.default_break_time = 5   # in minutes
+#         self.focus_time = self.default_focus_time
+#         self.break_time = self.default_break_time
+#         self.timer_running = False
+#         self.is_break = False
+#
+#         # Tabs
+#         self.tab_control = ttk.Notebook(self)
+#         self.pomodoro_tab = ttk.Frame(self.tab_control)
+#         self.customize_tab = ttk.Frame(self.tab_control)
+#         self.tab_control.add(self.pomodoro_tab, text='Pomodoro')
+#         self.tab_control.add(self.customize_tab, text='Customize')
+#         self.tab_control.pack(expand=1, fill="both")
+#
+#         self.create_pomodoro_tab()
+#         self.create_customize_tab()
+#
+#         # Exit Button
+#         self.exit_button = tk.Button(self, text="Exit", command=self.quit, font=("Arial", 10), bg="#ff6b6b", fg="white",
+#                                      relief="flat", width=10)
+#         self.exit_button.pack(pady=10)
+#
+#     def create_pomodoro_tab(self):
+#         self.timer_label = tk.Label(self.pomodoro_tab, text=f"{self.focus_time:02}:00.00", font=("Arial", 24),
+#                                     bg="#fff5f5", fg="#ff6b6b")
+#         self.timer_label.pack(pady=20)
+#
+#         self.quote_label = tk.Label(self.pomodoro_tab, text="Time to focus", font=("Arial", 16), bg="#fff5f5",
+#                                     fg="#4a4a4a")
+#         self.quote_label.pack(pady=10)
+#
+#         self.start_stop_button = tk.Button(self.pomodoro_tab, text="Start", command=self.start_stop_timer,
+#                                            font=("Arial", 12), bg="#ff6b6b", fg="white", relief="flat", width=10)
+#         self.start_stop_button.pack(pady=20)
+#         self.reset_timer()
+#
+#     def create_customize_tab(self):
+#         self.default_var = tk.BooleanVar(value=True)
+#
+#         self.default_check = tk.Checkbutton(self.customize_tab, text="Default 25m/5m Pomodoro",
+#                                             variable=self.default_var, command=self.toggle_customization,
+#                                             font=("Arial", 12), bg="#fff5f5", fg="#4a4a4a")
+#         self.default_check.pack(pady=20)
+#
+#         self.custom_frame = tk.Frame(self.customize_tab, bg="#fff5f5")
+#         self.custom_frame.pack()
+#
+#         self.long_break_label = tk.Label(self.custom_frame, text="Focus Time (minutes):", font=("Arial", 12),
+#                                          bg="#fff5f5", fg="#4a4a4a")
+#         self.long_break_label.grid(row=0, column=0, padx=5, pady=5)
+#         self.long_break_entry = tk.Entry(self.custom_frame, state="disabled", font=("Arial", 12))
+#         self.long_break_entry.grid(row=0, column=1, padx=5, pady=5)
+#
+#         self.short_break_label = tk.Label(self.custom_frame, text="Break Time (minutes):", font=("Arial", 12),
+#                                           bg="#fff5f5", fg="#4a4a4a")
+#         self.short_break_label.grid(row=1, column=0, padx=5, pady=5)
+#         self.short_break_entry = tk.Entry(self.custom_frame, state="disabled", font=("Arial", 12))
+#         self.short_break_entry.grid(row=1, column=1, padx=5, pady=5)
+#
+#         self.save_button = tk.Button(self.customize_tab, text="Save", command=self.save_custom_times,
+#                                      font=("Arial", 12), bg="#ff6b6b", fg="white", relief="flat", width=10)
+#         self.save_button.pack(pady=10)
+#
+#     def toggle_customization(self):
+#         if self.default_var.get():
+#             self.long_break_entry.config(state="disabled")
+#             self.short_break_entry.config(state="disabled")
+#         else:
+#             self.long_break_entry.config(state="normal")
+#             self.short_break_entry.config(state="normal")
+#
+#     def save_custom_times(self):
+#         if not self.default_var.get():
+#             try:
+#                 focus_time = int(self.long_break_entry.get())
+#                 break_time = int(self.short_break_entry.get())
+#                 if focus_time > 0 and break_time > 0:
+#                     self.focus_time = focus_time
+#                     self.break_time = break_time
+#                     self.reset_timer()
+#                 else:
+#                     messagebox.showwarning("Invalid Input", "Please enter positive integer values for the times.")
+#             except ValueError:
+#                 messagebox.showwarning("Invalid Input", "Please enter valid integer values for the times.")
+#         else:
+#             self.focus_time = self.default_focus_time
+#             self.break_time = self.default_break_time
+#             self.reset_timer()
+#
+#     def reset_timer(self):
+#         self.timer_label.config(text=f"{self.focus_time:02}:00.00")
+#         self.quote_label.config(text="Time to focus")
+#         self.timer_running = False
+#         self.is_break = False
+#         self.start_stop_button.config(text="Start")
+#
+#     def start_stop_timer(self):
+#         if not self.timer_running:
+#             self.timer_running = True
+#             self.start_stop_button.config(text="Stop")
+#             self.run_timer(self.focus_time * 60 if not self.is_break else self.break_time * 60)
+#         else:
+#             self.timer_running = False
+#             self.reset_timer()
+#
+#     def run_timer(self, countdown_time):
+#         if self.timer_running:
+#             minutes, seconds = divmod(int(countdown_time), 60)
+#             milliseconds = int((countdown_time * 100) % 100)
+#             # Ensure the display is always in MM:SS.mm format
+#             self.timer_label.config(text=f"{minutes:02}:{seconds:02}.{milliseconds:02}")
+#             if countdown_time > 0:
+#                 self.after(10, self.run_timer, countdown_time - 0.01)
+#             else:
+#                 self.is_break = not self.is_break
+#                 self.quote_label.config(text="Time to rest" if self.is_break else "Time to focus")
+#                 self.run_timer(self.break_time * 60 if self.is_break else self.focus_time * 60)
+#
+# if __name__ == "__main__":
+#     app = PomodoroApp()
+#     app.mainloop()

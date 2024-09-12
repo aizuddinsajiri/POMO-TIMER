@@ -107,7 +107,7 @@ class PomodoroApp(tk.Tk):
 
             #Switch to the Pomodoro tab
 
-            self.tab.control.select(self.pomodoro_tab)
+            self.tab_control.select(self.pomodoro_tab)
 
     def reset_timer(self):
         self.timer_label.config(text=f"{self.focus_time:02}:00.00")
@@ -270,7 +270,7 @@ if __name__ == "__main__":
 #     def run_timer(self, countdown_time):
 #         if self.timer_running:
 #             minutes, seconds = divmod(int(countdown_time), 60)
-#             milliseconds = int((countdown_time * 100) % 100)
+#           
 #             # Ensure the display is always in MM:SS.mm format
 #             self.timer_label.config(text=f"{minutes:02}:{seconds:02}.{milliseconds:02}")
 #             if countdown_time > 0:
@@ -283,3 +283,4 @@ if __name__ == "__main__":
 # if __name__ == "__main__":
 #     app = PomodoroApp()
 #     app.mainloop()
+

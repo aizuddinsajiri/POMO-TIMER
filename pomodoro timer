@@ -67,7 +67,7 @@ class PomodoroApp(tk.Tk):
         self.mute_button.pack(padx=5)
 
         # Exit Button
-        self.exit_button = tk.Button(self, text="Exit", command=self.quit, font=("Arial", 10), bg="#ff6b6b", fg="white",
+        self.exit_button = tk.Button(self, text="Exit", command=self.destroy, font=("Arial", 10), bg="#ff6b6b", fg="white",
                                      relief="flat", width=10)
         self.exit_button.pack(padx=5)
 

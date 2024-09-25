@@ -58,6 +58,11 @@ class PomodoroApp(tk.Tk):
                                     fg="#4a4a4a")
         self.quote_label.pack(pady=10)
 
+        # Preset name label will be dynamically updated later when a preset is applied
+        self.preset_name_label = tk.Label(self.pomodoro_tab, text="Preset: None", font=("Arial", 12), bg="#fff5f5",
+                                          fg="#4a4a4a")
+        self.preset_name_label.pack(pady=5)
+
         self.start_stop_button = tk.Button(self.pomodoro_tab, text="Start", command=self.start_stop_timer,
                                            font=("Arial", 12), bg="#ff6b6b", fg="white", relief="flat", width=10)
         self.start_stop_button.pack(pady=20)
@@ -239,6 +244,7 @@ class PomodoroApp(tk.Tk):
                 messagebox.showerror("Invalid Input", "Please enter valid integer values.")
                 return
         self.reset_timer()
+        self.tab_control.select(self.pomodoro_tab)  # Return to Pomodoro tab after saving
 
     def toggle_customization(self):
         if self.default_var.get():
@@ -268,7 +274,18 @@ class PomodoroApp(tk.Tk):
         selected_task = self.preset_listbox.get(tk.ACTIVE)
         if selected_task in self.presets:
             self.focus_time, self.break_time = self.presets[selected_task]
+            self.selected_preset_name = selected_task  # Save selected preset name
             self.reset_timer()
+            self.update_preset_label()  # Update the label on the Pomodoro timer
+            self.tab_control.select(self.pomodoro_tab)  # Switch to the Pomodoro tab
+
+    def update_preset_label(self):
+        if hasattr(self, 'preset_name_label'):  # Check if the label already exists
+            self.preset_name_label.config(text=f"Preset: {self.selected_preset_name}")
+        else:
+            self.preset_name_label = tk.Label(self.pomodoro_tab, text=f"Preset: {self.selected_preset_name}",
+                                              font=("Arial", 12), bg="#fff5f5", fg="#4a4a4a")
+            self.preset_name_label.pack(pady=5)
 
     def delete_preset(self):
         selected_task = self.preset_listbox.get(tk.ACTIVE)
@@ -376,6 +393,385 @@ class PomodoroApp(tk.Tk):
 if __name__ == "__main__":
     app = PomodoroApp()
     app.mainloop()
+
+# import tkinter as tk
+# from tkinter import ttk
+# from tkinter import messagebox
+# from datetime import datetime, timedelta
+# import time
+# import winsound
+#
+# class PomodoroApp(tk.Tk):
+#     def __init__(self):
+#         super().__init__()
+#         self.title("Pomodoro Timer")
+#         self.geometry("600x500")
+#         self.configure(bg="#fff5f5")
+#
+#         self.default_focus_time = 25  # in minutes
+#         self.default_break_time = 5   # in minutes
+#         self.focus_time = self.default_focus_time
+#         self.break_time = self.default_break_time
+#         self.timer_running = False
+#         self.is_break = False
+#         self.current_alarm_id = None
+#         self.presets = {}
+#         self.alarms = {}
+#         self.events = {}
+#
+#         # Tabs
+#         self.tab_control = ttk.Notebook(self)
+#         self.pomodoro_tab = ttk.Frame(self.tab_control)
+#         self.customize_tab = ttk.Frame(self.tab_control)
+#         self.preset_tab = ttk.Frame(self.tab_control)
+#         self.alarm_tab = ttk.Frame(self.tab_control)
+#         self.event_tab = ttk.Frame(self.tab_control)
+#         self.tab_control.add(self.pomodoro_tab, text='Pomodoro')
+#         self.tab_control.add(self.customize_tab, text='Customize')
+#         self.tab_control.add(self.preset_tab, text='Preset')
+#         self.tab_control.add(self.alarm_tab, text='Alarm')
+#         self.tab_control.add(self.event_tab, text='Events')
+#         self.tab_control.pack(expand=1, fill="both")
+#
+#         self.create_pomodoro_tab()
+#         self.create_customize_tab()
+#         self.create_preset_tab()
+#         self.create_alarm_tab()
+#         self.create_event_tab()
+#         self.start_periodic_checks()
+#
+#         # Exit Button
+#         self.exit_button = tk.Button(self, text="Exit", command=self.quit, font=("Arial", 10), bg="#ff6b6b", fg="white",
+#                                      relief="flat", width=10)
+#         self.exit_button.pack(pady=10)
+#
+#     def create_pomodoro_tab(self):
+#         self.timer_label = tk.Label(self.pomodoro_tab, text=f"{self.focus_time:02}:00.00", font=("Arial", 24),
+#                                     bg="#fff5f5", fg="#ff6b6b")
+#         self.timer_label.pack(pady=20)
+#
+#         self.quote_label = tk.Label(self.pomodoro_tab, text="Time to focus", font=("Arial", 16), bg="#fff5f5",
+#                                     fg="#4a4a4a")
+#         self.quote_label.pack(pady=10)
+#
+#         self.start_stop_button = tk.Button(self.pomodoro_tab, text="Start", command=self.start_stop_timer,
+#                                            font=("Arial", 12), bg="#ff6b6b", fg="white", relief="flat", width=10)
+#         self.start_stop_button.pack(pady=20)
+#         self.reset_timer()
+#
+#     def create_customize_tab(self):
+#         self.default_var = tk.BooleanVar(value=True)
+#
+#         self.default_check = tk.Checkbutton(self.customize_tab, text="Default 25m/5m Pomodoro",
+#                                             variable=self.default_var, command=self.toggle_customization,
+#                                             font=("Arial", 12), bg="#fff5f5", fg="#4a4a4a")
+#         self.default_check.pack(pady=20)
+#
+#         self.custom_frame = tk.Frame(self.customize_tab, bg="#fff5f5")
+#         self.custom_frame.pack()
+#
+#         self.long_break_label = tk.Label(self.custom_frame, text="Focus Time (minutes):", font=("Arial", 12),
+#                                          bg="#fff5f5", fg="#4a4a4a")
+#         self.long_break_label.grid(row=0, column=0, padx=5, pady=5)
+#         self.long_break_entry = tk.Entry(self.custom_frame, state="disabled", font=("Arial", 12))
+#         self.long_break_entry.grid(row=0, column=1, padx=5, pady=5)
+#
+#         self.short_break_label = tk.Label(self.custom_frame, text="Break Time (minutes):", font=("Arial", 12),
+#                                           bg="#fff5f5", fg="#4a4a4a")
+#         self.short_break_label.grid(row=1, column=0, padx=5, pady=5)
+#         self.short_break_entry = tk.Entry(self.custom_frame, state="disabled", font=("Arial", 12))
+#         self.short_break_entry.grid(row=1, column=1, padx=5, pady=5)
+#
+#         self.save_button = tk.Button(self.customize_tab, text="Save", command=self.save_custom_times,
+#                                      font=("Arial", 12), bg="#ff6b6b", fg="white", relief="flat", width=10)
+#         self.save_button.pack(pady=10)
+#
+#     def create_preset_tab(self):
+#         self.preset_frame = tk.Frame(self.preset_tab, bg="#fff5f5")
+#         self.preset_frame.pack(pady=10, padx=10, fill="x")
+#
+#         self.task_name_label = tk.Label(self.preset_frame, text="Task Name:", font=("Arial", 12), bg="#fff5f5")
+#         self.task_name_label.grid(row=0, column=0, padx=5, pady=5)
+#         self.task_name_entry = tk.Entry(self.preset_frame, font=("Arial", 12))
+#         self.task_name_entry.grid(row=0, column=1, padx=5, pady=5)
+#
+#         self.preset_focus_label = tk.Label(self.preset_frame, text="Focus Time (minutes):", font=("Arial", 12), bg="#fff5f5")
+#         self.preset_focus_label.grid(row=1, column=0, padx=5, pady=5)
+#         self.preset_focus_entry = tk.Entry(self.preset_frame, font=("Arial", 12))
+#         self.preset_focus_entry.grid(row=1, column=1, padx=5, pady=5)
+#
+#         self.preset_break_label = tk.Label(self.preset_frame, text="Break Time (minutes):", font=("Arial", 12), bg="#fff5f5")
+#         self.preset_break_label.grid(row=2, column=0, padx=5, pady=5)
+#         self.preset_break_entry = tk.Entry(self.preset_frame, font=("Arial", 12))
+#         self.preset_break_entry.grid(row=2, column=1, padx=5, pady=5)
+#
+#         self.add_preset_button = tk.Button(self.preset_frame, text="Add Preset", command=self.add_preset,
+#                                           font=("Arial", 12), bg="#4CAF50", fg="white", width=20)
+#         self.add_preset_button.grid(row=3, columnspan=2, pady=10)
+#
+#         self.preset_listbox = tk.Listbox(self.preset_tab, font=("Arial", 12), height=10, selectmode=tk.SINGLE)
+#         self.preset_listbox.pack(pady=10, padx=10, fill="x")
+#
+#         self.preset_listbox.bind('<<ListboxSelect>>', self.on_task_select)
+#
+#         self.apply_preset_button = tk.Button(self.preset_tab, text="Apply Selected Preset", command=self.apply_preset,
+#                                              font=("Arial", 12), bg="#4CAF50", fg="white", width=20)
+#         self.apply_preset_button.pack(pady=5)
+#
+#         self.delete_preset_button = tk.Button(self.preset_tab, text="Delete Selected Preset",
+#                                               command=self.delete_preset,
+#                                               font=("Arial", 12), bg="#f44336", fg="white", width=20)
+#         self.delete_preset_button.pack(pady=5)
+#
+#     def on_task_select(self, event):
+#         try:
+#             selected_task_index = self.preset_listbox.curselection()[0]
+#             self.selected_task = self.preset_listbox.get(selected_task_index)
+#         except IndexError:
+#             self.selected_task = None
+#
+#     def create_alarm_tab(self):
+#         tk.Label(self.alarm_tab, text="Set Alarm", font=("Arial", 14), bg="#fff5f5").pack(pady=10)
+#
+#         self.alarm_frame = tk.Frame(self.alarm_tab, bg="#fff5f5")
+#         self.alarm_frame.pack(pady=10)
+#
+#         tk.Label(self.alarm_frame, text="Alarm Time (HH:MM):", font=("Arial", 12), bg="#fff5f5").grid(row=0, column=0,
+#                                                                                                       padx=5, pady=5)
+#         self.alarm_time_entry = tk.Entry(self.alarm_frame, font=("Arial", 12))
+#         self.alarm_time_entry.grid(row=0, column=1, padx=5, pady=5)
+#
+#         self.set_alarm_button = tk.Button(self.alarm_tab, text="Set Alarm", command=self.set_alarm,
+#                                           font=("Arial", 12), bg="#4caf50", fg="white", width=15)
+#         self.set_alarm_button.pack(pady=10)
+#
+#         # Listbox for alarms
+#         self.alarm_listbox = tk.Listbox(self.alarm_tab, font=("Arial", 12), height=10, selectmode=tk.SINGLE)
+#         self.alarm_listbox.pack(pady=10, padx=10, fill="x")
+#
+#         # Button to delete selected alarm
+#         self.delete_alarm_button = tk.Button(self.alarm_tab, text="Delete Selected Alarm", command=self.delete_alarm,
+#                                              font=("Arial", 12), bg="#f44336", fg="white", width=20)
+#         self.delete_alarm_button.pack(pady=5)
+#
+#     def create_event_tab(self):
+#         tk.Label(self.event_tab, text="Set Event", font=("Arial", 14), bg="#fff5f5").pack(pady=10)
+#
+#         self.event_frame = tk.Frame(self.event_tab, bg="#fff5f5")
+#         self.event_frame.pack(pady=10)
+#
+#         tk.Label(self.event_frame, text="Event Name:", font=("Arial", 12), bg="#fff5f5").grid(row=0, column=0, padx=5,
+#                                                                                               pady=5)
+#         self.event_name_entry = tk.Entry(self.event_frame, font=("Arial", 12))
+#         self.event_name_entry.grid(row=0, column=1, padx=5, pady=5)
+#         tk.Label(self.event_frame, text="Start Time (HH:MM):", font=("Arial", 12), bg="#fff5f5").grid(row=1, column=0,
+#                                                                                                       padx=5, pady=5)
+#         self.event_start_entry = tk.Entry(self.event_frame, font=("Arial", 12))
+#         self.event_start_entry.grid(row=1, column=1, padx=5, pady=5)
+#
+#         tk.Label(self.event_frame, text="End Time (HH:MM):", font=("Arial", 12), bg="#fff5f5").grid(row=2, column=0,
+#                                                                                                     padx=5, pady=5)
+#         self.event_end_entry = tk.Entry(self.event_frame, font=("Arial", 12))
+#         self.event_end_entry.grid(row=2, column=1, padx=5, pady=5)
+#
+#         self.set_event_button = tk.Button(self.event_tab, text="Set Event", command=self.set_event,
+#                                           font=("Arial", 12), bg="#4caf50", fg="white", width=15)
+#         self.set_event_button.pack(pady=10)
+#
+#         # Listbox for events
+#         self.event_listbox = tk.Listbox(self.event_tab, font=("Arial", 12), height=10, selectmode=tk.SINGLE)
+#         self.event_listbox.pack(pady=10, padx=10, fill="x")
+#
+#         # Button to delete selected event
+#         self.delete_event_button = tk.Button(self.event_tab, text="Delete Selected Event", command=self.delete_event,
+#                                              font=("Arial", 12), bg="#f44336", fg="white", width=20)
+#         self.delete_event_button.pack(pady=5)
+#
+#     def start_stop_timer(self):
+#         if not self.timer_running:
+#             self.timer_running = True
+#             self.start_stop_button.config(text="Stop")
+#             self.run_timer(self.focus_time * 60 * 1000)  # in milliseconds
+#         else:
+#             self.timer_running = False
+#             self.start_stop_button.config(text="Start")
+#             self.after_cancel(self.current_alarm_id)
+#
+#     def reset_timer(self):
+#         self.timer_label.config(text=f"{self.focus_time:02}:00.00")
+#         self.quote_label.config(text="Time to focus")
+#
+#     def run_timer(self, time_ms):
+#         if time_ms <= 0:
+#             self.timer_running = False
+#             self.reset_timer()
+#             if self.is_break:
+#                 messagebox.showinfo("Break Time", "Break time is over!")
+#                 winsound.Beep(1000, 1000)
+#                 self.is_break = False
+#                 self.start_stop_button.config(text="Start")
+#             else:
+#                 messagebox.showinfo("Focus Time", "Focus time is over!")
+#                 winsound.Beep(1000, 1000)
+#                 self.is_break = True
+#                 self.focus_time, self.break_time = self.break_time, self.focus_time
+#                 self.timer_label.config(text=f"{self.focus_time:02}:00.00")
+#                 self.start_stop_button.config(text="Start")
+#         else:
+#             mins, ms = divmod(time_ms, 60000)
+#             secs, ms = divmod(ms, 1000)
+#             self.timer_label.config(text=f"{mins:02}:{secs:02}.{ms // 10:02}")
+#             self.current_alarm_id = self.after(10, lambda: self.run_timer(time_ms - 10))
+#
+#     def save_custom_times(self):
+#         if self.default_var.get():
+#             self.focus_time = self.default_focus_time
+#             self.break_time = self.default_break_time
+#         else:
+#             try:
+#                 self.focus_time = int(self.long_break_entry.get())
+#                 self.break_time = int(self.short_break_entry.get())
+#             except ValueError:
+#                 messagebox.showerror("Invalid Input", "Please enter valid integer values.")
+#                 return
+#         self.reset_timer()
+#
+#     def toggle_customization(self):
+#         if self.default_var.get():
+#             self.long_break_entry.config(state="disabled")
+#             self.short_break_entry.config(state="disabled")
+#         else:
+#             self.long_break_entry.config(state="normal")
+#             self.short_break_entry.config(state="normal")
+#
+#     def add_preset(self):
+#         name = self.task_name_entry.get()
+#         try:
+#             focus = int(self.preset_focus_entry.get())
+#             break_time = int(self.preset_break_entry.get())
+#         except ValueError:
+#             messagebox.showerror("Invalid Input", "Please enter valid integer values.")
+#             return
+#
+#         if name in self.presets:
+#             messagebox.showerror("Preset Exists", "Preset with this name already exists.")
+#             return
+#
+#         self.presets[name] = (focus, break_time)
+#         self.preset_listbox.insert(tk.END, name)
+#
+#     def apply_preset(self):
+#         selected_task = self.preset_listbox.get(tk.ACTIVE)
+#         if selected_task in self.presets:
+#             self.focus_time, self.break_time = self.presets[selected_task]
+#             self.reset_timer()
+#
+#     def delete_preset(self):
+#         selected_task = self.preset_listbox.get(tk.ACTIVE)
+#         if selected_task in self.presets:
+#             del self.presets[selected_task]
+#             self.preset_listbox.delete(tk.ACTIVE)
+#
+#     def set_alarm(self):
+#         alarm_time_str = self.alarm_time_entry.get()
+#         try:
+#             alarm_time = datetime.strptime(alarm_time_str, "%H:%M").time()
+#         except ValueError:
+#             messagebox.showerror("Invalid Time", "Please enter time in HH:MM format.")
+#             return
+#
+#         alarm_datetime = datetime.combine(datetime.today(), alarm_time)
+#         if alarm_datetime < datetime.now():
+#             alarm_datetime += timedelta(days=1)
+#
+#         self.alarms[alarm_datetime] = alarm_time
+#         self.update_alarm_listbox()  # Update listbox
+#
+#     def set_event(self):
+#         event_name = self.event_name_entry.get()
+#         try:
+#             start_time_str = self.event_start_entry.get()
+#             end_time_str = self.event_end_entry.get()
+#             start_time = datetime.strptime(start_time_str, "%H:%M").time()
+#             end_time = datetime.strptime(end_time_str, "%H:%M").time()
+#         except ValueError:
+#             messagebox.showerror("Invalid Time", "Please enter time in HH:MM format.")
+#             return
+#
+#         start_datetime = datetime.combine(datetime.today(), start_time)
+#         end_datetime = datetime.combine(datetime.today(), end_time)
+#         if end_datetime < start_datetime:
+#             end_datetime += timedelta(days=1)
+#
+#         if start_datetime < datetime.now():
+#             start_datetime += timedelta(days=1)
+#         if end_datetime < datetime.now():
+#             end_datetime += timedelta(days=1)
+#
+#         self.events[event_name] = (start_datetime, end_datetime)
+#         self.update_event_listbox()  # Update listbox
+#
+#     def update_alarm_listbox(self):
+#         self.alarm_listbox.delete(0, tk.END)
+#         for alarm_time in sorted(self.alarms.keys()):
+#             self.alarm_listbox.insert(tk.END, alarm_time.strftime("%H:%M"))
+#
+#     def update_event_listbox(self):
+#         self.event_listbox.delete(0, tk.END)
+#         for event_name in self.events.keys():
+#             start_time, end_time = self.events[event_name]
+#             self.event_listbox.insert(tk.END,
+#                                       f"{event_name}: {start_time.strftime('%H:%M')} - {end_time.strftime('%H:%M')}")
+#
+#     def delete_alarm(self):
+#         selected_alarm_index = self.alarm_listbox.curselection()
+#         if selected_alarm_index:
+#             selected_alarm_time_str = self.alarm_listbox.get(selected_alarm_index[0])
+#             selected_alarm_time = datetime.strptime(selected_alarm_time_str, "%H:%M").time()
+#             alarm_datetime = datetime.combine(datetime.today(), selected_alarm_time)
+#             if alarm_datetime in self.alarms:
+#                 del self.alarms[alarm_datetime]
+#                 self.update_alarm_listbox()  # Update listbox
+#
+#     def delete_event(self):
+#         selected_event_index = self.event_listbox.curselection()
+#         if selected_event_index:
+#             selected_event_info = self.event_listbox.get(selected_event_index[0])
+#             event_name = selected_event_info.split(":")[0]
+#             if event_name in self.events:
+#                 del self.events[event_name]
+#                 self.update_event_listbox()  # Update listbox
+#
+#     def check_alarms(self):
+#         current_time = datetime.now()
+#         alarms_to_remove = []
+#         for alarm_time in sorted(self.alarms.keys()):
+#             if alarm_time <= current_time:
+#                 messagebox.showinfo("Alarm", "Alarm time reached!")
+#                 winsound.Beep(1000, 1000)
+#                 alarms_to_remove.append(alarm_time)
+#         for alarm_time in alarms_to_remove:
+#             del self.alarms[alarm_time]
+#
+#     def check_events(self):
+#         current_time = datetime.now()
+#         events_to_remove = []
+#         for event_name, (start_datetime, end_datetime) in sorted(self.events.items()):
+#             if start_datetime <= current_time <= end_datetime:
+#                 messagebox.showinfo("Event", f"{event_name} is starting!")
+#                 winsound.Beep(1000, 1000)
+#                 events_to_remove.append(event_name)
+#         for event_name in events_to_remove:
+#             del self.events[event_name]
+#
+#     def start_periodic_checks(self):
+#         self.check_alarms()
+#         self.check_events()
+#         self.after(1000, self.start_periodic_checks)  # Schedule the next check in 1 second
+#
+# if __name__ == "__main__":
+#     app = PomodoroApp()
+#     app.mainloop()
 
 # import tkinter as tk
 # from tkinter import ttk
@@ -2064,3 +2460,5 @@ if __name__ == "__main__":
 # if __name__ == "__main__":
 #     app = PomodoroApp()
 #     app.mainloop()
+
+

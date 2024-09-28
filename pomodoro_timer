@@ -1,10 +1,12 @@
 import tkinter as tk
-from tkinter import ttk
-from tkinter import messagebox
+from tkinter import Entry, ttk, messagebox, scrolledtext, Toplevel, Listbox, Button, END
 from datetime import datetime, timedelta
 import time
 import winsound
 import pygame
+import os
+import ctypes
+import threading
 
 class PomodoroApp(tk.Tk):
     def __init__(self):
@@ -24,6 +26,9 @@ class PomodoroApp(tk.Tk):
         self.alarms = {}
         self.events = {}
 
+        self.tracker = UsageTracker()
+        self.tracker.start_tracking()
+
         # Tabs
         self.tab_control = ttk.Notebook(self)
         self.pomodoro_tab = ttk.Frame(self.tab_control)
@@ -31,11 +36,13 @@ class PomodoroApp(tk.Tk):
         self.preset_tab = ttk.Frame(self.tab_control)
         self.alarm_tab = ttk.Frame(self.tab_control)
         self.event_tab = ttk.Frame(self.tab_control)
+        self.usage_tracker_tab = ttk.Frame(self.tab_control)
         self.tab_control.add(self.pomodoro_tab, text='Pomodoro')
         self.tab_control.add(self.customize_tab, text='Customize')
         self.tab_control.add(self.preset_tab, text='Preset')
         self.tab_control.add(self.alarm_tab, text='Alarm')
         self.tab_control.add(self.event_tab, text='Events')
+        self.tab_control.add(self.usage_tracker_tab, text='Usage Tracker')
         self.tab_control.pack(expand=1, fill="both")
 
         self.create_pomodoro_tab()
@@ -44,6 +51,7 @@ class PomodoroApp(tk.Tk):
         self.create_alarm_tab()
         self.create_event_tab()
         self.start_periodic_checks()
+        self.create_usage_tracker_tab()
 
         # Button Frame to hold both buttons side by side
         self.button_frame = tk.Frame(self, bg="#fff5f5")
@@ -55,7 +63,7 @@ class PomodoroApp(tk.Tk):
         self.mute_button.pack(side="left", padx=5)
 
         # Exit Button (placed on the right)
-        self.exit_button = tk.Button(self.button_frame, text="Exit", command=self.quit, font=("Arial", 10), bg="#ff6b6b", fg="white",
+        self.exit_button = tk.Button(self.button_frame, text="Exit", command=self.destroy, font=("Arial", 10), bg="#ff6b6b", fg="white",
                                      relief="flat", width=10)
         self.exit_button.pack(side="left", padx=5)
         pygame.mixer.init()
@@ -442,6 +450,178 @@ class PomodoroApp(tk.Tk):
     def play_background_music(self, file):
         pygame.mixer.music.load(file)
         pygame.mixer.music.play(-1)  # -1 means the music will loop indefinitely
+    
+    # Usage Tracking Functions
+    def create_usage_tracker_tab(self):
+        # Button to show report
+        self.show_report_button = tk.Button(self.usage_tracker_tab, text="Show Report", command=self.show_report,
+                                             font=("Arial", 12), bg="#ff6b6b", fg="white", relief="flat")
+        self.show_report_button.pack(pady=20)
+
+        # Button to load log file
+        self.load_log_button = tk.Button(self.usage_tracker_tab, text="Load Log File", command=self.open_log_selection_window,
+                                          font=("Arial", 12), bg="#ff6b6b", fg="white", relief="flat")
+        self.load_log_button.pack(pady=20)
+
+    def show_report(self):
+        """Display the usage report in a new window."""
+        report_window = tk.Toplevel(self)
+        report_window.title("Usage Report")
+        report_window.geometry("600x400")
+
+        # Create a scrollable text area using ScrolledText
+        report_text_area = scrolledtext.ScrolledText(report_window, wrap=tk.WORD, width=70, height=20, font=("Arial", 10))
+        report_text_area.pack(padx=10, pady=10, fill="both", expand=True)
+
+        # Write report contents to text area
+        report_text_area.insert(tk.END, "\n".join(self.tracker.new_report) if self.tracker.new_report else "No usage data available.")
+        report_text_area.config(state="disabled")  # Make it read-only
+
+    def open_log_selection_window(self):
+            """Open a window to select and load a log file."""
+            log_window = tk.Toplevel(self)
+            log_window.title("Select Log File")
+            log_window.geometry("300x400")
+
+        # Label for the listbox
+            label = ttk.Label(log_window, text="Available Log Files:")
+            label.pack(pady=(10, 0), padx=10)
+
+        # Listbox (scrollable if necessary) for displaying log files
+            listbox_frame = ttk.Frame(log_window)
+            listbox_frame.pack(padx=10, pady=10, fill="both", expand=True)
+
+            listbox = tk.Listbox(listbox_frame, height=15, selectmode=tk.SINGLE)
+            scrollbar = ttk.Scrollbar(listbox_frame, orient="vertical", command=listbox.yview)
+            listbox.config(yscrollcommand=scrollbar.set)
+        
+            listbox.pack(side="left", fill="both", expand=True)
+            scrollbar.pack(side="right", fill="y")
+
+        # Load available log files into the listbox
+            for log_file in os.listdir(LOG_DIR):
+                if log_file.endswith("_usage_log.txt"):
+                    listbox.insert(tk.END, log_file)
+
+        # Button to load the selected log file
+            load_button = ttk.Button(log_window, text="Load Selected Log", command=lambda: self.load_selected_log(listbox, log_window))
+            load_button.pack(pady=10)
+
+    def load_selected_log(self, listbox, window):
+        """Load and display the content of the selected log file."""
+        try:
+            selected_file = listbox.get(listbox.curselection())
+        except tk.TclError:
+            return  # Handle the case where no file is selected
+        
+        log_file_path = os.path.join(LOG_DIR, selected_file)
+
+        # Close the selection window
+        window.destroy()
+
+        # Open the selected log file and display its content
+        with open(log_file_path, "r", encoding="utf-8") as file:
+            logs = file.read()
+
+        # Display logs in a new window
+        log_window = tk.Toplevel(self)
+        log_window.title(f"Log Viewer - {selected_file}")
+        log_window.geometry("600x400")
+
+        # Add a ScrolledText widget to display logs
+        text_area = scrolledtext.ScrolledText(log_window, wrap=tk.WORD, width=70, height=20, font=("Arial", 12, "italic"))
+        text_area.pack(padx=10, pady=10, fill="both", expand=True)  # Make the text area fill the window
+        text_area.insert(tk.END, logs)
+        text_area.configure(state="disabled")
+        text_area.tag_configure("center", justify='center')  
+        text_area.tag_add("center", "1.0", "end")
+
+LOG_DIR = "logs"  # Directory where logs are saved
+
+class UsageTracker(threading.Thread):
+    def __init__(self):
+        super().__init__()
+        self.running = threading.Event()  # Event to control the running state
+        self.last_log_entry = ""
+        self.current_window = None
+        self.new_report = []  # New data entries will be stored here
+        self.log_by_app = {}  # Dictionary to store logs grouped by application
+        self.excluded_app = "PomoTimer"  # Exclude this app from being tracked
+
+        # Ensure the log directory exists
+        if not os.path.exists(LOG_DIR):
+            os.makedirs(LOG_DIR)
+
+        self.log_file = self.get_log_filename()  # Generate log file name
+
+    def get_log_filename(self):
+        """Generate log filename based on the current date."""
+        today = datetime.now().strftime('%Y-%m-%d')
+        return os.path.join(LOG_DIR, f"{today}_usage_log.txt")  # Log file path
+
+    def run(self):
+        last_window = None
+        start_time = None
+
+        with open(self.log_file, "a", encoding="utf-8") as file:
+            self.running.set()  # Set the running event
+            while self.running.is_set():
+                active_window = self.get_active_window_title()  # Get the currently active window title
+                current_time = datetime.now()
+
+                # Exclude tracking the app itself
+                if active_window != last_window and active_window != self.excluded_app:
+                    if last_window is not None:
+                        end_time = current_time
+                        duration = end_time - start_time
+                        formatted_duration = divmod(duration.total_seconds(), 60)
+                        minutes = int(formatted_duration[0])
+                        seconds = int(formatted_duration[1])
+
+                        # Log entry with date
+                        log_entry = (f"{end_time.strftime('%Y-%m-%d')} - {last_window} - Start: {start_time.strftime('%H:%M:%S')} | "
+                                     f"End: {end_time.strftime('%H:%M:%S')} | Duration: {minutes} minutes {seconds} seconds")
+                        
+                        # Add to new report
+                        self.new_report.append(log_entry)
+
+                        # Group logs by app name
+                        if last_window not in self.log_by_app:
+                            self.log_by_app[last_window] = []
+                        self.log_by_app[last_window].append(log_entry)
+
+                        # Write to the file
+                        file.write(log_entry + "\n")
+                        file.flush()
+
+                    last_window = active_window
+                    start_time = current_time
+
+                time.sleep(1)  # Shortened sleep time for better accuracy
+
+    def get_active_window_title(self):
+        """Get the title of the currently active window."""
+        user32 = ctypes.WinDLL('user32')
+        GetForegroundWindow = user32.GetForegroundWindow
+        GetWindowTextW = user32.GetWindowTextW
+        GetWindowTextLengthW = user32.GetWindowTextLengthW
+
+        hwnd = GetForegroundWindow()
+        length = GetWindowTextLengthW(hwnd)
+        buffer = ctypes.create_unicode_buffer(length + 1)
+        GetWindowTextW(hwnd, buffer, length + 1)
+        return buffer.value
+
+    def start_tracking(self):
+        """Start tracking the active window."""
+        self.current_window = self.get_active_window_title()
+        self.running.set()
+        self.start()  # Start the thread
+
+    def stop_tracking(self):
+        """Stop tracking the active window."""
+        self.running.clear()
+        self.join(timeout=5)  # Wait for the thread to finish
 
 if __name__ == "__main__":
     app = PomodoroApp()
